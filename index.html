@@ -21,19 +21,42 @@
     const API_URL = "https://insurexp-production.up.railway.app";
 
     async function submitBill() {
-      const patient = document.getElementById("patient").value;
-      const amount = document.getElementById("amount").value;
+  try {
+    const patient = document.getElementById("patient").value;
+    const amount = document.getElementById("amount").value;
 
-      const res = await fetch(API_URL + "/billing", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          patientName: patient,
-          subtotal: Number(amount)
-        })
-      });
+    const res = await fetch("https://insurexp-production.up.railway.app/billing", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        patientName: patient,
+        subtotal: Number(amount)
+      })
+    });
+
+    const data = await res.json();
+
+    document.getElementById("output").innerText =
+      JSON.stringify(data, null, 2);
+
+  } catch (err) {
+    document.getElementById("output").innerText =
+      "ERROR: " + err.message;
+  }
+}
+
+    const data = await res.json();
+
+    document.getElementById("output").innerText =
+      JSON.stringify(data, null, 2);
+
+  } catch (err) {
+    document.getElementById("output").innerText =
+      "ERROR: " + err.message;
+  }
+}
 
       const data = await res.json();
       document.getElementById("output").innerText =
