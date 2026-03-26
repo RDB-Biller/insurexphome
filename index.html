@@ -7,83 +7,141 @@
 
 <body class="p-6 bg-gray-100">
 
-  <h1 class="text-3xl font-bold mb-6 text-blue-700">
-    🏥 InsureXP Billing System
-  </h1>
+<h1 class="text-3xl font-bold mb-6 text-blue-700">
+  🏥 InsureXP Billing System
+</h1>
 
-  <!-- FORM -->
-  <div class="bg-white p-4 rounded shadow-md max-w-md">
-    <input id="patient" placeholder="Patient Name"
-      class="border p-2 mb-3 w-full rounded"/>
+<!-- FORM -->
+<div class="bg-white p-4 rounded shadow-md max-w-lg">
 
-    <input id="amount" type="number" placeholder="Amount"
-      class="border p-2 mb-3 w-full rounded"/>
+  <input id="patient" placeholder="Patient Name"
+    class="border p-2 mb-3 w-full rounded"/>
 
-    <select id="paymentType" class="border p-2 mb-3 w-full rounded">
-      <option value="cash">Cash</option>
-      <option value="insurance">Insurance</option>
-    </select>
+  <!-- ✅ SERVICES / MEDICATIONS (Autocomplete + Dropdown) -->
+  <input list="items" id="itemInput"
+    placeholder="Select or type service / medication / item"
+    class="border p-2 mb-3 w-full rounded"/>
 
-    <button onclick="submitBill()"
-      class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-full">
-      Submit Bill
-    </button>
+  <datalist id="items">
+    <option value="Consultation - 50">
+    <option value="X-Ray - 120">
+    <option value="Blood Test - 80">
+    <option value="MRI Scan - 300">
+    <option value="Medication - Paracetamol - 20">
+    <option value="Medication - Antibiotics - 60">
+    <option value="Surgery Fee - 500">
+    <option value="Hospital Bed - 150">
+  </datalist>
+
+  <input id="amount" type="number" placeholder="Amount"
+    class="border p-2 mb-3 w-full rounded"/>
+
+  <select id="paymentType" class="border p-2 mb-3 w-full rounded">
+    <option value="cash">Cash</option>
+    <option value="insurance">Insurance</option>
+  </select>
+
+  <!-- ✅ ONE LINE: DISCOUNT / SPLIT / CASHBACK -->
+  <div class="flex gap-2 mb-3">
+    <input id="discount" type="number" placeholder="Discount %"
+      class="border p-2 w-1/3 rounded"/>
+
+    <input id="split" type="number" placeholder="Insurance %"
+      class="border p-2 w-1/3 rounded"/>
+
+    <input id="cashback" type="number" placeholder="Cashback %"
+      class="border p-2 w-1/3 rounded"/>
   </div>
 
-  <!-- OUTPUT -->
-  <div id="output"
-    class="mt-6 p-4 bg-white rounded shadow text-sm whitespace-pre-wrap">
+  <button onclick="submitBill()"
+    class="bg-blue-600 text-white px-4 py-2 rounded w-full">
+    Submit Bill
+  </button>
+
+  <!-- ✅ FINAL PAYABLE DISPLAY -->
+  <div id="finalDisplay"
+    class="mt-4 text-lg font-bold text-green-700">
   </div>
 
-  <!-- TABLE -->
-  <div class="mt-6 bg-white p-4 rounded shadow">
-    <h2 class="font-bold mb-3">Billing History</h2>
+</div>
 
-    <table class="w-full border text-sm">
-      <thead>
-        <tr class="bg-gray-200">
-          <th class="p-2">Patient</th>
-          <th class="p-2">Subtotal</th>
-          <th class="p-2">Discount</th>
-          <th class="p-2">Insurance</th>
-          <th class="p-2">Payable</th>
-          <th class="p-2">Status</th>
-          <th class="p-2">Action</th>
-        </tr>
-      </thead>
-      <tbody id="billTable"></tbody>
-    </table>
-  </div>
+<!-- OUTPUT -->
+<div id="output"
+  class="mt-6 p-4 bg-white rounded shadow text-sm whitespace-pre-wrap">
+</div>
+
+<!-- TABLE -->
+<div class="mt-6 bg-white p-4 rounded shadow">
+  <h2 class="font-bold mb-3">Billing History</h2>
+
+  <table class="w-full border text-sm">
+    <thead>
+      <tr class="bg-gray-200">
+        <th class="p-2">Patient</th>
+        <th class="p-2">Item</th>
+        <th class="p-2">Subtotal</th>
+        <th class="p-2">Discount</th>
+        <th class="p-2">Insurance</th>
+        <th class="p-2">Cash</th>
+        <th class="p-2">Cashback</th>
+        <th class="p-2">Final</th>
+        <th class="p-2">Status</th>
+      </tr>
+    </thead>
+    <tbody id="billTable"></tbody>
+  </table>
+</div>
 
 <script>
 const API_URL = "https://insurexp-production.up.railway.app";
 let bills = [];
 
-// ✅ SMART BILLING FUNCTION (YOUR LOGIC)
-function applySmartBilling(subtotal, paymentType) {
-  let discount = 0;
-  let insuranceCover = 0;
+// ✅ SMART BILLING ENGINE
+function applySmartBilling(subtotal, discountPct, splitPct, cashbackPct, paymentType) {
 
-  if (subtotal > 200) discount = 0.1 * subtotal;
+  const discount = (discountPct / 100) * subtotal;
+  const afterDiscount = subtotal - discount;
+
+  let insuranceCover = 0;
+  let cashPay = 0;
 
   if (paymentType === "insurance") {
-    insuranceCover = 0.8 * subtotal;
+    insuranceCover = (splitPct / 100) * afterDiscount;
+    cashPay = afterDiscount - insuranceCover;
+  } else {
+    cashPay = afterDiscount;
   }
 
-  const total = subtotal - discount;
+  const cashback = (cashbackPct / 100) * cashPay;
+  const finalPayable = cashPay - cashback;
 
   return {
-    subtotal,
     discount,
     insuranceCover,
-    payable: total - insuranceCover
+    cashPay,
+    cashback,
+    finalPayable
   };
 }
 
+// ✅ AUTO-FILL AMOUNT FROM ITEM
+document.getElementById("itemInput").addEventListener("change", function() {
+  const value = this.value;
+  const priceMatch = value.match(/- (\d+)/);
+  if (priceMatch) {
+    document.getElementById("amount").value = priceMatch[1];
+  }
+});
+
 // ✅ CREATE BILL
 async function submitBill() {
+
   const patient = document.getElementById("patient").value;
+  const item = document.getElementById("itemInput").value;
   const amount = Number(document.getElementById("amount").value);
+  const discountPct = Number(document.getElementById("discount").value) || 0;
+  const splitPct = Number(document.getElementById("split").value) || 0;
+  const cashbackPct = Number(document.getElementById("cashback").value) || 0;
   const paymentType = document.getElementById("paymentType").value;
 
   if (!patient || !amount) {
@@ -92,10 +150,17 @@ async function submitBill() {
     return;
   }
 
-  // Apply smart billing locally
-  const result = applySmartBilling(amount, paymentType);
+  const result = applySmartBilling(
+    amount,
+    discountPct,
+    splitPct,
+    cashbackPct,
+    paymentType
+  );
 
-  document.getElementById("output").innerText = "⏳ Processing...";
+  // ✅ SHOW FINAL PAYABLE
+  document.getElementById("finalDisplay").innerText =
+    "💰 Final Payable: " + result.finalPayable.toFixed(2);
 
   try {
     const res = await fetch(API_URL + "/billing", {
@@ -115,6 +180,8 @@ async function submitBill() {
     const bill = {
       id: data.bill?.id || Date.now(),
       patientName: patient,
+      item,
+      subtotal: amount,
       ...result,
       status: "PENDING"
     };
@@ -131,66 +198,27 @@ async function submitBill() {
   }
 }
 
-// ✅ RENDER TABLE
+// ✅ TABLE
 function renderTable() {
   const table = document.getElementById("billTable");
   table.innerHTML = "";
 
   bills.forEach(bill => {
-    const row = `
+    table.innerHTML += `
       <tr class="border-t text-center">
         <td class="p-2">${bill.patientName}</td>
+        <td class="p-2">${bill.item}</td>
         <td class="p-2">${bill.subtotal}</td>
-        <td class="p-2">${bill.discount}</td>
-        <td class="p-2">${bill.insuranceCover}</td>
-        <td class="p-2 font-bold">${bill.payable}</td>
-        <td class="p-2">
-          <span class="${
-            bill.status === "APPROVED" ? "text-green-600" :
-            bill.status === "REJECTED" ? "text-red-600" :
-            "text-yellow-600"
-          } font-bold">
-            ${bill.status}
-          </span>
-        </td>
-        <td class="p-2">
-          ${
-            bill.status === "PENDING"
-              ? `
-                <button onclick="approveBill(${bill.id})"
-                  class="bg-green-600 text-white px-2 py-1 rounded mr-1">
-                  Approve
-                </button>
-                <button onclick="rejectBill(${bill.id})"
-                  class="bg-red-600 text-white px-2 py-1 rounded">
-                  Reject
-                </button>
-              `
-              : "-"
-          }
-        </td>
+        <td class="p-2">${bill.discount.toFixed(2)}</td>
+        <td class="p-2">${bill.insuranceCover.toFixed(2)}</td>
+        <td class="p-2">${bill.cashPay.toFixed(2)}</td>
+        <td class="p-2">${bill.cashback.toFixed(2)}</td>
+        <td class="p-2 font-bold">${bill.finalPayable.toFixed(2)}</td>
+        <td class="p-2">${bill.status}</td>
       </tr>
     `;
-    table.innerHTML += row;
   });
 }
-
-// ✅ VERIFY (MOCK INSURER)
-function approveBill(id) {
-  bills = bills.map(b =>
-    b.id === id ? { ...b, status: "APPROVED" } : b
-  );
-  renderTable();
-}
-
-// ✅ REJECT
-function rejectBill(id) {
-  bills = bills.map(b =>
-    b.id === id ? { ...b, status: "REJECTED" } : b
-  );
-  renderTable();
-}
-
 </script>
 
 </body>
