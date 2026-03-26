@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>InsureXP</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="p-6 bg-gray-100">
+
+  <h1 class="text-3xl font-bold mb-6 text-blue-700">
+    🏥 InsureXP Billing
+  </h1>
+
+  <div class="bg-white p-4 rounded shadow-md max-w-md">
+
+    <input id="patient" placeholder="Patient Name"
+      class="border p-2 mb-3 w-full rounded"/>
+
+    <input id="amount" type="number" placeholder="Amount"
+      class="border p-2 mb-3 w-full rounded"/>
+
+    <select id="paymentType" class="border p-2 mb-3 w-full rounded">
+      <option value="cash">Cash</option>
+      <option value="insurance">Insurance</option>
+    </select>
+
+    <button onclick="submitBill()"
+      class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-full">
+      Submit Bill
+    </button>
+
+  </div>
+
+  <div id="output"
+    class="mt-6 p-4 bg-white rounded shadow text-sm whitespace-pre-wrap">
+  </div>
+
+  <script>
+    const API_URL = "https://insurexp-production.up.railway.app";
+
+    async function submitBill() {
+      const patient = document.getElementById("patient").value;
+      const amount = Number(document.getElementById("amount").value);
+      const paymentType = document.getElementById("paymentType").value;
+
+      // ✅ Basic validation
+      if (!patient || !amount) {
+        document.getElementById("output").innerText =
+          "❌ Please enter patient name and amount";
+        return;
+      }
+
+      document.getElementById("output").innerText = "⏳ Processing...";
+
+      try {
+        const res = await fetch(API_URL + "/billing", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            patientName: patient,
+            subtotal: amount,
+            paymentType
+          })
+        });
+
+        const text = await res.text();
+
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error("Server returned non-JSON response");
+        }
+
+        // ✅ Format nicely
+        document.getElementById("output").innerText =
+          "✅ SUCCESS\n\n" + JSON.stringify(data, null, 2);
+
+      } catch (err) {
+        document.getElementById("output").innerText =
+          "❌ ERROR:\n" + err.message;
+      }
+    }
+  </script>
+
+</body>
+</html>
