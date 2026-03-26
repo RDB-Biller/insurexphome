@@ -17,7 +17,7 @@
   <input id="patient" placeholder="Patient Name"
     class="border p-2 mb-3 w-full rounded"/>
 
-  <!-- ✅ SERVICES / MEDICATIONS (Autocomplete + Dropdown) -->
+  <!-- SERVICES -->
   <input list="items" id="itemInput"
     placeholder="Select or type service / medication / item"
     class="border p-2 mb-3 w-full rounded"/>
@@ -36,19 +36,25 @@
   <input id="amount" type="number" placeholder="Amount"
     class="border p-2 mb-3 w-full rounded"/>
 
+  <!-- ✅ PAYMENT OPTIONS -->
   <select id="paymentType" class="border p-2 mb-3 w-full rounded">
     <option value="cash">Cash</option>
     <option value="insurance">Insurance</option>
+    <option value="mtn_momo">MTN MoMo</option>
+    <option value="bank_s">Bank S</option>
+    <option value="bank_a">Bank A</option>
+    <option value="bank_rb">Bank RB</option>
+    <option value="other_momo">Other Mobile Money</option>
+    <option value="visa_mastercard">Visa / Mastercard</option>
+    <option value="other">Other</option>
   </select>
 
-  <!-- ✅ ONE LINE: DISCOUNT / SPLIT / CASHBACK -->
+  <!-- DISCOUNT / SPLIT / CASHBACK -->
   <div class="flex gap-2 mb-3">
     <input id="discount" type="number" placeholder="Discount %"
       class="border p-2 w-1/3 rounded"/>
-
     <input id="split" type="number" placeholder="Insurance %"
       class="border p-2 w-1/3 rounded"/>
-
     <input id="cashback" type="number" placeholder="Cashback %"
       class="border p-2 w-1/3 rounded"/>
   </div>
@@ -58,7 +64,7 @@
     Submit Bill
   </button>
 
-  <!-- ✅ FINAL PAYABLE DISPLAY -->
+  <!-- FINAL PAYABLE -->
   <div id="finalDisplay"
     class="mt-4 text-lg font-bold text-green-700">
   </div>
@@ -79,6 +85,7 @@
       <tr class="bg-gray-200">
         <th class="p-2">Patient</th>
         <th class="p-2">Item</th>
+        <th class="p-2">Payment</th>
         <th class="p-2">Subtotal</th>
         <th class="p-2">Discount</th>
         <th class="p-2">Insurance</th>
@@ -96,7 +103,14 @@
 const API_URL = "https://insurexp-production.up.railway.app";
 let bills = [];
 
-// ✅ SMART BILLING ENGINE
+// ✅ SET DEFAULT PAYMENT HERE
+const DEFAULT_PAYMENT = "cash";
+
+window.onload = () => {
+  document.getElementById("paymentType").value = DEFAULT_PAYMENT;
+};
+
+// ✅ SMART BILLING
 function applySmartBilling(subtotal, discountPct, splitPct, cashbackPct, paymentType) {
 
   const discount = (discountPct / 100) * subtotal;
@@ -105,7 +119,9 @@ function applySmartBilling(subtotal, discountPct, splitPct, cashbackPct, payment
   let insuranceCover = 0;
   let cashPay = 0;
 
-  if (paymentType === "insurance") {
+  const isInsurance = paymentType === "insurance";
+
+  if (isInsurance) {
     insuranceCover = (splitPct / 100) * afterDiscount;
     cashPay = afterDiscount - insuranceCover;
   } else {
@@ -124,7 +140,7 @@ function applySmartBilling(subtotal, discountPct, splitPct, cashbackPct, payment
   };
 }
 
-// ✅ AUTO-FILL AMOUNT FROM ITEM
+// AUTO-FILL PRICE
 document.getElementById("itemInput").addEventListener("change", function() {
   const value = this.value;
   const priceMatch = value.match(/- (\d+)/);
@@ -133,7 +149,7 @@ document.getElementById("itemInput").addEventListener("change", function() {
   }
 });
 
-// ✅ CREATE BILL
+// CREATE BILL
 async function submitBill() {
 
   const patient = document.getElementById("patient").value;
@@ -158,7 +174,6 @@ async function submitBill() {
     paymentType
   );
 
-  // ✅ SHOW FINAL PAYABLE
   document.getElementById("finalDisplay").innerText =
     "💰 Final Payable: " + result.finalPayable.toFixed(2);
 
@@ -181,6 +196,7 @@ async function submitBill() {
       id: data.bill?.id || Date.now(),
       patientName: patient,
       item,
+      paymentType,
       subtotal: amount,
       ...result,
       status: "PENDING"
@@ -198,7 +214,7 @@ async function submitBill() {
   }
 }
 
-// ✅ TABLE
+// TABLE
 function renderTable() {
   const table = document.getElementById("billTable");
   table.innerHTML = "";
@@ -208,6 +224,7 @@ function renderTable() {
       <tr class="border-t text-center">
         <td class="p-2">${bill.patientName}</td>
         <td class="p-2">${bill.item}</td>
+        <td class="p-2">${bill.paymentType}</td>
         <td class="p-2">${bill.subtotal}</td>
         <td class="p-2">${bill.discount.toFixed(2)}</td>
         <td class="p-2">${bill.insuranceCover.toFixed(2)}</td>
