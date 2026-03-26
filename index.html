@@ -73,7 +73,25 @@
         } catch {
           throw new Error("Server returned non-JSON response");
         }
+function applySmartBilling(subtotal, paymentType) {
+  let discount = 0;
+  let insuranceCover = 0;
 
+  if (subtotal > 200) discount = 0.1 * subtotal;
+
+  if (paymentType === "insurance") {
+    insuranceCover = 0.8 * subtotal;
+  }
+
+  const total = subtotal - discount;
+
+  return {
+    subtotal,
+    discount,
+    insuranceCover,
+    payable: total - insuranceCover
+  };
+}
         // ✅ Format nicely
         document.getElementById("output").innerText =
           "✅ SUCCESS\n\n" + JSON.stringify(data, null, 2);
