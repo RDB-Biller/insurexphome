@@ -8,11 +8,11 @@
 <body class="p-6 bg-gray-100">
 
   <h1 class="text-3xl font-bold mb-6 text-blue-700">
-    🏥 InsureXP Billing
+    🏥 InsureXP Billing System
   </h1>
 
+  <!-- FORM -->
   <div class="bg-white p-4 rounded shadow-md max-w-md">
-
     <input id="patient" placeholder="Patient Name"
       class="border p-2 mb-3 w-full rounded"/>
 
@@ -28,51 +28,38 @@
       class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-full">
       Submit Bill
     </button>
-
   </div>
 
+  <!-- OUTPUT -->
   <div id="output"
     class="mt-6 p-4 bg-white rounded shadow text-sm whitespace-pre-wrap">
   </div>
 
-  <script>
-    const API_URL = "https://insurexp-production.up.railway.app";
+  <!-- TABLE -->
+  <div class="mt-6 bg-white p-4 rounded shadow">
+    <h2 class="font-bold mb-3">Billing History</h2>
 
-    async function submitBill() {
-      const patient = document.getElementById("patient").value;
-      const amount = Number(document.getElementById("amount").value);
-      const paymentType = document.getElementById("paymentType").value;
+    <table class="w-full border text-sm">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="p-2">Patient</th>
+          <th class="p-2">Subtotal</th>
+          <th class="p-2">Discount</th>
+          <th class="p-2">Insurance</th>
+          <th class="p-2">Payable</th>
+          <th class="p-2">Status</th>
+          <th class="p-2">Action</th>
+        </tr>
+      </thead>
+      <tbody id="billTable"></tbody>
+    </table>
+  </div>
 
-      // ✅ Basic validation
-      if (!patient || !amount) {
-        document.getElementById("output").innerText =
-          "❌ Please enter patient name and amount";
-        return;
-      }
+<script>
+const API_URL = "https://insurexp-production.up.railway.app";
+let bills = [];
 
-      document.getElementById("output").innerText = "⏳ Processing...";
-
-      try {
-        const res = await fetch(API_URL + "/billing", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            patientName: patient,
-            subtotal: amount,
-            paymentType
-          })
-        });
-
-        const text = await res.text();
-
-        let data;
-        try {
-          data = JSON.parse(text);
-        } catch {
-          throw new Error("Server returned non-JSON response");
-        }
+// ✅ SMART BILLING FUNCTION (YOUR LOGIC)
 function applySmartBilling(subtotal, paymentType) {
   let discount = 0;
   let insuranceCover = 0;
@@ -92,16 +79,119 @@ function applySmartBilling(subtotal, paymentType) {
     payable: total - insuranceCover
   };
 }
-        // ✅ Format nicely
-        document.getElementById("output").innerText =
-          "✅ SUCCESS\n\n" + JSON.stringify(data, null, 2);
 
-      } catch (err) {
-        document.getElementById("output").innerText =
-          "❌ ERROR:\n" + err.message;
-      }
-    }
-  </script>
+// ✅ CREATE BILL
+async function submitBill() {
+  const patient = document.getElementById("patient").value;
+  const amount = Number(document.getElementById("amount").value);
+  const paymentType = document.getElementById("paymentType").value;
+
+  if (!patient || !amount) {
+    document.getElementById("output").innerText =
+      "❌ Please enter patient name and amount";
+    return;
+  }
+
+  // Apply smart billing locally
+  const result = applySmartBilling(amount, paymentType);
+
+  document.getElementById("output").innerText = "⏳ Processing...";
+
+  try {
+    const res = await fetch(API_URL + "/billing", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        patientName: patient,
+        subtotal: amount,
+        paymentType
+      })
+    });
+
+    const data = await res.json();
+
+    const bill = {
+      id: data.bill?.id || Date.now(),
+      patientName: patient,
+      ...result,
+      status: "PENDING"
+    };
+
+    bills.unshift(bill);
+    renderTable();
+
+    document.getElementById("output").innerText =
+      "✅ Bill Created Successfully";
+
+  } catch (err) {
+    document.getElementById("output").innerText =
+      "❌ ERROR: " + err.message;
+  }
+}
+
+// ✅ RENDER TABLE
+function renderTable() {
+  const table = document.getElementById("billTable");
+  table.innerHTML = "";
+
+  bills.forEach(bill => {
+    const row = `
+      <tr class="border-t text-center">
+        <td class="p-2">${bill.patientName}</td>
+        <td class="p-2">${bill.subtotal}</td>
+        <td class="p-2">${bill.discount}</td>
+        <td class="p-2">${bill.insuranceCover}</td>
+        <td class="p-2 font-bold">${bill.payable}</td>
+        <td class="p-2">
+          <span class="${
+            bill.status === "APPROVED" ? "text-green-600" :
+            bill.status === "REJECTED" ? "text-red-600" :
+            "text-yellow-600"
+          } font-bold">
+            ${bill.status}
+          </span>
+        </td>
+        <td class="p-2">
+          ${
+            bill.status === "PENDING"
+              ? `
+                <button onclick="approveBill(${bill.id})"
+                  class="bg-green-600 text-white px-2 py-1 rounded mr-1">
+                  Approve
+                </button>
+                <button onclick="rejectBill(${bill.id})"
+                  class="bg-red-600 text-white px-2 py-1 rounded">
+                  Reject
+                </button>
+              `
+              : "-"
+          }
+        </td>
+      </tr>
+    `;
+    table.innerHTML += row;
+  });
+}
+
+// ✅ VERIFY (MOCK INSURER)
+function approveBill(id) {
+  bills = bills.map(b =>
+    b.id === id ? { ...b, status: "APPROVED" } : b
+  );
+  renderTable();
+}
+
+// ✅ REJECT
+function rejectBill(id) {
+  bills = bills.map(b =>
+    b.id === id ? { ...b, status: "REJECTED" } : b
+  );
+  renderTable();
+}
+
+</script>
 
 </body>
 </html>
